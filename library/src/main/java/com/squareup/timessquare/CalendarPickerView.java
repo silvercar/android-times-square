@@ -58,7 +58,9 @@ public class CalendarPickerView extends ListView {
      * <li>Have one date selected and then select an earlier date.</li>
      * </ul>
      */
-    RANGE
+    RANGE,
+    /** Similar to range but only allows you to change the 2nd date */
+    RANGE_EXTENSION_ONLY
   }
 
   private final CalendarPickerView.MonthAdapter adapter;
@@ -78,6 +80,8 @@ public class CalendarPickerView extends ListView {
   private Calendar minCal;
   private Calendar maxCal;
   private Calendar monthCounter;
+  private Calendar firstCal;
+  private MonthCellDescriptor firstCell;
   private boolean displayOnly;
   SelectionMode selectionMode;
   Calendar today;
@@ -329,7 +333,22 @@ public class CalendarPickerView extends ListView {
     /** Override the {@link SelectionMode} from the default ({@link SelectionMode#SINGLE}). */
     public FluentInitializer inMode(SelectionMode mode) {
       selectionMode = mode;
+
+      if(selectionMode == SelectionMode.RANGE_EXTENSION_ONLY) {
+        throw new IllegalArgumentException("RANGE_EXTENSION_ONLY mode requires two selectedDates");
+      }
+
       validateAndUpdate();
+      return this;
+    }
+
+    /**
+     * Changes the {@link SelectionMode} to {@link SelectionMode#RANGE_EXTENSION_ONLY}
+     */
+    public FluentInitializer inRangeModeExtension(Collection<Date> selectedDates) {
+      selectionMode = SelectionMode.RANGE_EXTENSION_ONLY;
+      validateAndUpdate();
+      withSelectedDates(selectedDates);
       return this;
     }
 
@@ -353,6 +372,9 @@ public class CalendarPickerView extends ListView {
         throw new IllegalArgumentException(
             "RANGE mode only allows two selectedDates.  You tried to pass " + selectedDates.size());
       }
+      if (selectionMode == SelectionMode.RANGE_EXTENSION_ONLY && selectedDates.size() != 2) {
+        throw new IllegalArgumentException("RANGE_EXTENSION_ONLY mode requires two selectedDates");
+      }
       if (selectedDates != null) {
         for (Date date : selectedDates) {
           selectDate(date);
@@ -361,6 +383,11 @@ public class CalendarPickerView extends ListView {
       scrollToSelectedDates();
 
       validateAndUpdate();
+
+      if (selectionMode == SelectionMode.RANGE_EXTENSION_ONLY) {
+        firstCal = selectedCals.get(0);
+        firstCell = selectedCells.get(0);
+      }
       return this;
     }
 
@@ -554,7 +581,9 @@ public class CalendarPickerView extends ListView {
       if (cellClickInterceptor != null && cellClickInterceptor.onCellClicked(clickedDate)) {
         return;
       }
-      if (!betweenDates(clickedDate, minCal, maxCal) || !isDateSelectable(clickedDate)) {
+      if (!betweenDates(clickedDate, minCal, maxCal)
+          || !validRangeExtension(clickedDate)
+          || !isDateSelectable(clickedDate)) {
         if (invalidDateListener != null) {
           invalidDateListener.onInvalidDateSelected(clickedDate);
         }
@@ -570,6 +599,11 @@ public class CalendarPickerView extends ListView {
         }
       }
     }
+  }
+
+  private boolean validRangeExtension(Date date) {
+    return selectionMode != SelectionMode.RANGE_EXTENSION_ONLY || (selectedCals.size() > 0
+        && !date.before(selectedCals.get(0).getTime()));
   }
 
   /**
@@ -646,6 +680,16 @@ public class CalendarPickerView extends ListView {
         }
         break;
 
+      case RANGE_EXTENSION_ONLY:
+        if (selectedCals.size() > 1) {
+          clearOldSelections();
+          selectedCells.add(firstCell);
+          firstCell.setSelected(true);
+          selectedCals.add(firstCal);
+          if (dateListener != null) dateListener.onDateSelected(firstCal.getTime());
+        }
+        break;
+
       case MULTIPLE:
         date = applyMultiSelect(date, newlySelectedCal);
         break;
@@ -665,7 +709,8 @@ public class CalendarPickerView extends ListView {
       }
       selectedCals.add(newlySelectedCal);
 
-      if (selectionMode == SelectionMode.RANGE && selectedCells.size() > 1) {
+      if ((selectionMode == SelectionMode.RANGE
+          || selectionMode == SelectionMode.RANGE_EXTENSION_ONLY) && selectedCells.size() > 1) {
         // Select all days in between start and end.
         Date start = selectedCells.get(0).getDate();
         Date end = selectedCells.get(1).getDate();

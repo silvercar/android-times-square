@@ -57,6 +57,7 @@ public class SampleTimesSquareActivity extends Activity {
     final Button multi = (Button) findViewById(R.id.button_multi);
     final Button highlight = (Button) findViewById(R.id.button_highlight);
     final Button range = (Button) findViewById(R.id.button_range);
+    final Button rangeExtensionOnly = (Button) findViewById(R.id.button_range_extension_only);
     final Button displayOnly = (Button) findViewById(R.id.button_display_only);
     final Button dialog = (Button) findViewById(R.id.button_dialog);
     final Button customized = (Button) findViewById(R.id.button_customized);
@@ -132,6 +133,23 @@ public class SampleTimesSquareActivity extends Activity {
         calendar.init(new Date(), nextYear.getTime()) //
             .inMode(SelectionMode.RANGE) //
             .withSelectedDates(dates);
+      }
+    });
+
+    rangeExtensionOnly.setOnClickListener(new OnClickListener() {
+      @Override public void onClick(View v) {
+        setButtonsEnabled(range);
+
+        calendar.setCustomDayView(new DefaultDayViewAdapter());
+        Calendar today = Calendar.getInstance();
+        ArrayList<Date> dates = new ArrayList<Date>();
+        today.add(Calendar.DATE, 3);
+        dates.add(today.getTime());
+        today.add(Calendar.DATE, 5);
+        dates.add(today.getTime());
+        calendar.setDecorators(Collections.<CalendarCellDecorator>emptyList());
+        calendar.init(new Date(), nextYear.getTime()) //
+            .inRangeModeExtension(dates);
       }
     });
 

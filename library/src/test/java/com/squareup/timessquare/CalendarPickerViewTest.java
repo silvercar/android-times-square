@@ -21,6 +21,7 @@ import org.robolectric.annotation.Config;
 
 import static com.squareup.timessquare.CalendarPickerView.SelectionMode.MULTIPLE;
 import static com.squareup.timessquare.CalendarPickerView.SelectionMode.RANGE;
+import static com.squareup.timessquare.CalendarPickerView.SelectionMode.RANGE_EXTENSION_ONLY;
 import static com.squareup.timessquare.CalendarPickerView.SelectionMode.SINGLE;
 import static com.squareup.timessquare.MonthCellDescriptor.RangeState.FIRST;
 import static com.squareup.timessquare.MonthCellDescriptor.RangeState.LAST;
@@ -456,6 +457,13 @@ public class CalendarPickerViewTest {
     assertRangeSelectionBehavior();
   }
 
+  @Test(expected = IllegalArgumentException.class)
+  public void testRangeExtensionSelectionWithNoInitialSelection() {
+    view.init(minDate, maxDate, timeZone, locale).inMode(RANGE_EXTENSION_ONLY);
+    fail("Should not have been able to init with mode RANGE_EXTENSION_ONLY without "
+        + "selectedDates");
+  }
+
   @Test public void testInitWithoutHighlightingCells() {
     view.init(minDate, maxDate, timeZone, locale) //
         .inMode(SINGLE);
@@ -538,6 +546,39 @@ public class CalendarPickerViewTest {
     assertThat(view.getSelectedDates()).hasSize(1);
   }
 
+  @Test public void testRangeExtensionOnlyWithTwoInitialSelections() {
+    Calendar nov18 = buildCal(2012, NOVEMBER, 18);
+    Calendar nov24 = buildCal(2012, NOVEMBER, 24);
+    List<Date> selectedDates = Arrays.asList(nov18.getTime(), nov24.getTime());
+    view.init(minDate, maxDate, timeZone, locale)
+        .inRangeModeExtension(selectedDates);
+    assertRangeSelected();
+
+    assertRangeExtensionOnlySelectionBehavior();
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testRangeExtensionOnlyWithOneInitialSelection() throws Exception {
+    Calendar nov18 = buildCal(2012, NOVEMBER, 18);
+    List<Date> selectedDates = Arrays.asList(nov18.getTime());
+    view.init(minDate, maxDate, timeZone, locale) //
+        .inRangeModeExtension(selectedDates);
+  }
+
+  private void assertRangeExtensionOnlySelectionBehavior() {
+    // Reduce current range in the middle of the current (Nov 18 - Nov 24) one.
+    Calendar nov20 = buildCal(2012, NOVEMBER, 20);
+    view.selectDate(nov20.getTime());
+    assertThat(view.selectedCals).hasSize(2);
+    assertThat(view.selectedCells).hasSize(3);
+    assertThat(view.getSelectedDates()).hasSize(3);
+
+    // Extend range from the current (Nov 18 - Nov 20) one.
+    Calendar nov24 = buildCal(2012, NOVEMBER, 24);
+    view.selectDate(nov24.getTime());
+    assertRangeSelected();
+  }
+
   @Test public void testRangeStateOnDateSelections() {
     Calendar startCal = buildCal(2012, NOVEMBER, 17);
     Calendar endCal = buildCal(2012, NOVEMBER, 24);
@@ -560,6 +601,34 @@ public class CalendarPickerViewTest {
     assertCell(cells, 3, 4, 22, true, false, false, true, MIDDLE);
     assertCell(cells, 3, 5, 23, true, false, false, true, MIDDLE);
     assertCell(cells, 3, 6, 24, true, true, false, true, LAST);
+  }
+
+  @Test public void testRangeExtensionOnlyStateOnDateSelections() {
+    Calendar startCal = buildCal(2012, NOVEMBER, 17);
+    Calendar endCal = buildCal(2012, NOVEMBER, 24);
+    Calendar midCal = buildCal(2012, NOVEMBER, 20);
+
+    view.init(minDate, maxDate, timeZone, locale) //
+        .inRangeModeExtension(Arrays.asList(startCal.getTime(), endCal.getTime()));
+
+    List<List<MonthCellDescriptor>> cells = getCells(NOVEMBER, 2012);
+    assertCell(cells, 2, 6, 17, true, true, false, true, FIRST);
+    assertCell(cells, 3, 0, 18, true, false, false, true, MIDDLE);
+    assertCell(cells, 3, 1, 19, true, false, false, true, MIDDLE);
+    assertCell(cells, 3, 2, 20, true, false, false, true, MIDDLE);
+    assertCell(cells, 3, 3, 21, true, false, false, true, MIDDLE);
+    assertCell(cells, 3, 4, 22, true, false, false, true, MIDDLE);
+    assertCell(cells, 3, 5, 23, true, false, false, true, MIDDLE);
+    assertCell(cells, 3, 6, 24, true, true, false, true, LAST);
+
+    boolean wasAbleToSetDate = view.selectDate(midCal.getTime());
+    assertThat(wasAbleToSetDate).isTrue();
+
+    cells = getCells(NOVEMBER, 2012);
+    assertCell(cells, 2, 6, 17, true, true, false, true, FIRST);
+    assertCell(cells, 3, 0, 18, true, false, false, true, MIDDLE);
+    assertCell(cells, 3, 1, 19, true, false, false, true, MIDDLE);
+    assertCell(cells, 3, 2, 20, true, true, false, true, LAST);
   }
 
   @Test public void testLocaleSetting() throws Exception {

@@ -10,6 +10,7 @@
     <string name="Dialog">Dialog</string>
     <string name="DisplayOnly">DisplayOnly</string>
     <string name="Range">Range</string>
+    <string name="RangeExtensionOnly">Range Extension Only</string>
     <string name="Multi">Multi</string>
     <string name="Single">Single</string>
     <string name="Highlight">Highlight</string>
